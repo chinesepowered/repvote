@@ -31,27 +31,51 @@ export default function Home() {
     
     setLoading(true)
     try {
-      // For demo purposes, create a mock profile
-      // In production, this would query the blockchain
-      const mockProfile: UserProfile = {
-        userId: "1",
-        address: user.addr,
-        baseReputation: 25,
-        vouchedReputation: 15.5,
-        activeVouches: {
-          "0x1234567890abcdef": 5.0,
-          "0xabcdef1234567890": 3.2
-        },
-        vouchesReceived: {
-          "0xfedcba0987654321": 10.0,
-          "0x1111222233334444": 5.5
-        },
-        vouchCount: 2,
-        createdAt: Date.now() - 86400000 // 1 day ago
+      // Import flowHelpers dynamically to avoid SSR issues
+      const { flowHelpers } = await import('@/lib/flowHelpers')
+      
+      // Try to get user profile from blockchain
+      let userProfile = await flowHelpers.getUserProfile(user.addr)
+      
+      // If user doesn't exist on blockchain, try to set them up
+      if (!userProfile) {
+        console.log('User not found on blockchain, attempting setup...')
+        try {
+          await flowHelpers.setupUser()
+          // Wait a bit for transaction to be processed
+          await new Promise(resolve => setTimeout(resolve, 3000))
+          userProfile = await flowHelpers.getUserProfile(user.addr)
+        } catch (setupError) {
+          console.error('Failed to setup user:', setupError)
+          // Fallback to basic profile for new users
+          userProfile = {
+            userId: "0",
+            address: user.addr,
+            baseReputation: 10,
+            vouchedReputation: 0,
+            activeVouches: {},
+            vouchesReceived: {},
+            vouchCount: 0,
+            createdAt: Date.now()
+          }
+        }
       }
-      setProfile(mockProfile)
+      
+      setProfile(userProfile)
     } catch (error) {
       console.error('Failed to load user profile:', error)
+      // Fallback profile if blockchain is unavailable
+      const fallbackProfile: UserProfile = {
+        userId: "0",
+        address: user.addr,
+        baseReputation: 10,
+        vouchedReputation: 0,
+        activeVouches: {},
+        vouchesReceived: {},
+        vouchCount: 0,
+        createdAt: Date.now()
+      }
+      setProfile(fallbackProfile)
     } finally {
       setLoading(false)
     }
@@ -60,23 +84,44 @@ export default function Home() {
   const handleVouch = async (address: string, amount: number) => {
     try {
       console.log('Creating vouch:', { address, amount })
-      // TODO: Implement Flow transaction
-      // For now, just simulate success
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      loadUserProfile()
+      setLoading(true)
+      
+      // Import flowHelpers dynamically
+      const { flowHelpers } = await import('@/lib/flowHelpers')
+      
+      // Execute the vouch transaction on blockchain
+      const txId = await flowHelpers.createVouch(address, amount)
+      console.log('Vouch transaction successful:', txId)
+      
+      // Refresh user profile after successful transaction
+      await loadUserProfile()
     } catch (error) {
       console.error('Failed to create vouch:', error)
+      alert('Failed to create vouch. Please try again.')
+    } finally {
+      setLoading(false)
     }
   }
 
   const handleRevoke = async (address: string) => {
     try {
       console.log('Revoking vouch:', address)
-      // TODO: Implement Flow transaction
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      loadUserProfile()
+      setLoading(true)
+      
+      // Import flowHelpers dynamically
+      const { flowHelpers } = await import('@/lib/flowHelpers')
+      
+      // Execute the revoke transaction on blockchain
+      const txId = await flowHelpers.revokeVouch(address)
+      console.log('Revoke transaction successful:', txId)
+      
+      // Refresh user profile after successful transaction
+      await loadUserProfile()
     } catch (error) {
       console.error('Failed to revoke vouch:', error)
+      alert('Failed to revoke vouch. Please try again.')
+    } finally {
+      setLoading(false)
     }
   }
 

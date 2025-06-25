@@ -1,15 +1,11 @@
-import RepVouch from "../contracts/RepVouch.cdc"
+import RepVouch from 0xREPVOUCH_ADDRESS
 
 transaction {
     prepare(signer: AuthAccount) {
         // Check if user already has a RepVouch user resource
         if signer.borrow<&RepVouch.User>(from: RepVouch.UserStoragePath) == nil {
-            // Get admin reference to create user
-            let adminRef = signer.borrow<&RepVouch.Admin>(from: RepVouch.AdminStoragePath)
-                ?? panic("Admin resource not found")
-            
-            // Create user resource
-            let user <- adminRef.createUser(userAddress: signer.address)
+            // Create user resource using public function
+            let user <- RepVouch.createUser(userAddress: signer.address)
             
             // Save user resource to storage
             signer.save(<-user, to: RepVouch.UserStoragePath)

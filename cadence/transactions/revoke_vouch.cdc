@@ -1,4 +1,4 @@
-import RepVouch from "../contracts/RepVouch.cdc"
+import RepVouch from 0xREPVOUCH_ADDRESS
 
 transaction(voucheeAddress: Address) {
     let voucherRef: &RepVouch.User

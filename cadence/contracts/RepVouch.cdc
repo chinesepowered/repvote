@@ -1,5 +1,5 @@
-import NonFungibleToken from "./NonFungibleToken.cdc"
-import MetadataViews from "./MetadataViews.cdc"
+// RepVouch - Decentralized Reputation System
+// Built for Flow Hackathon - Decentralized Economies, Governance & Science
 
 pub contract RepVouch {
     
@@ -119,14 +119,6 @@ pub contract RepVouch {
     }
     
     pub resource Admin {
-        pub fun createUser(userAddress: Address): @User {
-            RepVouch.totalUsers = RepVouch.totalUsers + 1
-            let user <- create User(userId: RepVouch.totalUsers, address: userAddress)
-            
-            emit UserRegistered(address: userAddress, userId: RepVouch.totalUsers)
-            return <-user
-        }
-        
         pub fun grantReputation(userAddress: Address, amount: UFix64) {
             let userRef = getAccount(userAddress)
                 .getCapability(RepVouch.UserPublicPath)
@@ -135,6 +127,15 @@ pub contract RepVouch {
             
             (userRef as! &RepVouch.User).increaseBaseReputation(amount: amount)
         }
+    }
+    
+    // Public function to create users (for demo - in production would have access controls)
+    pub fun createUser(userAddress: Address): @User {
+        RepVouch.totalUsers = RepVouch.totalUsers + 1
+        let user <- create User(userId: RepVouch.totalUsers, address: userAddress)
+        
+        emit UserRegistered(address: userAddress, userId: RepVouch.totalUsers)
+        return <-user
     }
     
     pub fun createVouch(voucherId: Address, voucheeAddress: Address, amount: UFix64) {

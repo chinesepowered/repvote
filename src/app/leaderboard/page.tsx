@@ -26,7 +26,14 @@ export default function LeaderboardPage() {
   const loadLeaderboard = async () => {
     setLoading(true)
     try {
-      // Mock leaderboard data for demo
+      // Import flowHelpers dynamically to avoid SSR issues
+      const { flowHelpers } = await import('@/lib/flowHelpers')
+      
+      // TODO: Implement proper leaderboard query from blockchain
+      // For now, we'll create a placeholder implementation
+      // In a real implementation, you'd query all users and sort by reputation
+      
+      // Mock leaderboard data for demo (will be replaced with real blockchain query)
       const mockLeaderboard: LeaderboardUser[] = [
         {
           address: "0x1234567890abcdef",
