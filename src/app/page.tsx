@@ -8,14 +8,25 @@ import { UserProfile } from '@/types'
 const Header = dynamic(() => import('@/components/Header'), { ssr: false })
 const ReputationCard = dynamic(() => import('@/components/ReputationCard'), { ssr: false })
 const VouchingInterface = dynamic(() => import('@/components/VouchingInterface'), { ssr: false })
+const LiveTransactionFeed = dynamic(() => import('@/components/LiveTransactionFeed'), { ssr: false })
+const AchievementNotification = dynamic(() => import('@/components/AchievementNotification'), { ssr: false })
+const TrustNetworkVisualization = dynamic(() => import('@/components/TrustNetworkVisualization'), { ssr: false })
 
 export default function Home() {
   const [user, setUser] = useState({ loggedIn: false, addr: null })
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(false)
+  const [achievements, setAchievements] = useState<any[]>([])
+  const [previousProfile, setPreviousProfile] = useState<UserProfile | null>(null)
+  const [showNetworkViz, setShowNetworkViz] = useState(false)
 
   useEffect(() => {
-    fcl.currentUser.subscribe(setUser)
+    const unsubscribe = fcl.currentUser.subscribe(setUser)
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe()
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -61,6 +72,12 @@ export default function Home() {
         }
       }
       
+      // Check for achievements
+      if (previousProfile && userProfile) {
+        checkForAchievements(previousProfile, userProfile)
+      }
+      
+      setPreviousProfile(profile)
       setProfile(userProfile)
     } catch (error) {
       console.error('Failed to load user profile:', error)
@@ -79,6 +96,68 @@ export default function Home() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const checkForAchievements = (oldProfile: UserProfile, newProfile: UserProfile) => {
+    const oldTotal = oldProfile.baseReputation + oldProfile.vouchedReputation
+    const newTotal = newProfile.baseReputation + newProfile.vouchedReputation
+    
+    // Check for level up
+    const levels = [0, 25, 100, 500, 1000]
+    const levelNames = ['Newcomer', 'Trusted', 'Respected', 'Authority', 'Legend']
+    const oldLevel = levels.findIndex(level => oldTotal < level) - 1
+    const newLevel = levels.findIndex(level => newTotal < level) - 1
+    
+    if (newLevel > oldLevel && newLevel >= 0) {
+      addAchievement({
+        title: 'Level Up!',
+        description: `You've reached ${levelNames[newLevel]} level!`,
+        reputation: newTotal,
+        type: 'level_up'
+      })
+    }
+    
+    // Check for first vouch
+    if (oldProfile.vouchCount === 0 && newProfile.vouchCount === 1) {
+      addAchievement({
+        title: 'First Vouch!',
+        description: 'You vouched for your first community member',
+        reputation: 0,
+        type: 'first_vouch'
+      })
+    }
+    
+    // Check for vouch received
+    const oldVouchesReceived = Object.keys(oldProfile.vouchesReceived).length
+    const newVouchesReceived = Object.keys(newProfile.vouchesReceived).length
+    
+    if (oldVouchesReceived === 0 && newVouchesReceived === 1) {
+      addAchievement({
+        title: 'First Vouch Received!',
+        description: 'Someone vouched for you for the first time',
+        reputation: 0,
+        type: 'vouches_received'
+      })
+    }
+  }
+
+  const addAchievement = (achievement: any) => {
+    const newAchievement = {
+      ...achievement,
+      id: Math.random().toString(36).substr(2, 9),
+      timestamp: Date.now()
+    }
+    
+    setAchievements(prev => [...prev, newAchievement])
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+      dismissAchievement(newAchievement.id)
+    }, 5000)
+  }
+
+  const dismissAchievement = (id: string) => {
+    setAchievements(prev => prev.filter(achievement => achievement.id !== id))
   }
 
   const handleVouch = async (address: string, amount: number) => {
@@ -153,47 +232,82 @@ export default function Home() {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <ReputationCard profile={profile} />
-                <VouchingInterface 
-                  profile={profile}
-                  onVouch={handleVouch}
-                  onRevoke={handleRevoke}
-                />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <ReputationCard profile={profile} />
+                    <VouchingInterface 
+                      profile={profile}
+                      onVouch={handleVouch}
+                      onRevoke={handleRevoke}
+                    />
+                  </div>
+                </div>
+                <div className="lg:col-span-1">
+                  <LiveTransactionFeed maxItems={8} autoRefresh={true} />
+                </div>
               </div>
             )}
 
-            <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                How RepVouch Works
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-xl font-bold text-blue-600">1</span>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  How RepVouch Works
+                </h2>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-sm font-bold text-blue-600">1</span>
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900 mb-1">Start with Base Reputation</h3>
+                      <p className="text-sm text-gray-600">
+                        Every user begins with 10 base reputation points
+                      </p>
+                    </div>
                   </div>
-                  <h3 className="font-medium text-gray-900 mb-2">Start with Base Reputation</h3>
-                  <p className="text-sm text-gray-600">
-                    Every user begins with 10 base reputation points
-                  </p>
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-sm font-bold text-green-600">2</span>
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900 mb-1">Vouch for Others</h3>
+                      <p className="text-sm text-gray-600">
+                        Lend your reputation to people you trust (up to 5 at once)
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-sm font-bold text-purple-600">3</span>
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900 mb-1">Earn Benefits</h3>
+                      <p className="text-sm text-gray-600">
+                        Higher reputation unlocks voting, proposals, and exclusive features
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-xl font-bold text-green-600">2</span>
-                  </div>
-                  <h3 className="font-medium text-gray-900 mb-2">Vouch for Others</h3>
-                  <p className="text-sm text-gray-600">
-                    Lend your reputation to people you trust (up to 5 at once)
-                  </p>
-                </div>
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-xl font-bold text-purple-600">3</span>
-                  </div>
-                  <h3 className="font-medium text-gray-900 mb-2">Earn Benefits</h3>
-                  <p className="text-sm text-gray-600">
-                    Higher reputation unlocks voting, proposals, and exclusive features
-                  </p>
+              </div>
+
+              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg border border-blue-200 p-6 shadow-sm">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  Trust Network
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  Explore the visualization of reputation relationships and see how trust flows through the community.
+                </p>
+                <button
+                  onClick={() => setShowNetworkViz(true)}
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 font-medium transition-all duration-200 transform hover:scale-105 shadow-lg"
+                >
+                  🕸️ View Trust Network
+                </button>
+                <div className="mt-4 text-sm text-gray-500">
+                  <p>• Interactive network graph</p>
+                  <p>• Real-time vouching relationships</p>
+                  <p>• Reputation flow visualization</p>
                 </div>
               </div>
             </div>
@@ -260,6 +374,19 @@ export default function Home() {
           </div>
         )}
       </main>
+      
+      {/* Achievement Notifications */}
+      <AchievementNotification 
+        achievements={achievements}
+        onDismiss={dismissAchievement}
+      />
+
+      {/* Trust Network Visualization */}
+      <TrustNetworkVisualization
+        isOpen={showNetworkViz}
+        onClose={() => setShowNetworkViz(false)}
+        currentUser={profile}
+      />
     </div>
   )
 }

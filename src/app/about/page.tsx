@@ -173,15 +173,17 @@ export default function AboutPage() {
           </p>
           <div className="flex items-center justify-center space-x-6">
             <a 
-              href="https://github.com/repvouch/repvouch"
+              href="#"
               className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
+              onClick={(e) => { e.preventDefault(); alert('GitHub repo coming soon!') }}
             >
               <Github className="h-5 w-5" />
               <span>GitHub</span>
             </a>
             <a 
-              href="https://twitter.com/repvouch"
+              href="#"
               className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
+              onClick={(e) => { e.preventDefault(); alert('Follow updates coming soon!') }}
             >
               <Twitter className="h-5 w-5" />
               <span>Twitter</span>

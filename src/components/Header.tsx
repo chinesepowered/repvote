@@ -2,13 +2,18 @@
 
 import { useState, useEffect } from 'react'
 import * as fcl from "@onflow/fcl"
-import { Coins, LogOut, User } from 'lucide-react'
+import { Coins, LogOut, User, Network } from 'lucide-react'
 
 export default function Header() {
   const [user, setUser] = useState<{ loggedIn: boolean; addr?: string | null }>({ loggedIn: false, addr: null })
 
   useEffect(() => {
-    fcl.currentUser.subscribe(setUser)
+    const unsubscribe = fcl.currentUser.subscribe(setUser)
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe()
+      }
+    }
   }, [])
 
   const signIn = () => {

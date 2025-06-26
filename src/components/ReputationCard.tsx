@@ -2,6 +2,7 @@
 
 import { UserProfile, REPUTATION_LEVELS } from '@/types'
 import { Star, TrendingUp, Users, Award } from 'lucide-react'
+import ReputationBadge, { ReputationProgress } from './ReputationBadge'
 
 interface ReputationCardProps {
   profile: UserProfile | null
@@ -34,9 +35,7 @@ export default function ReputationCard({ profile }: ReputationCardProps) {
     <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-900">Your Reputation</h2>
-        <div className={`px-3 py-1 rounded-full text-sm font-medium text-white ${currentLevel.color}`}>
-          {currentLevel.name}
-        </div>
+        <ReputationBadge reputation={totalReputation} size="md" showLabel={false} />
       </div>
 
       <div className="space-y-4">
@@ -53,22 +52,7 @@ export default function ReputationCard({ profile }: ReputationCardProps) {
           </div>
         </div>
 
-        {nextLevel && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Progress to {nextLevel.name}</span>
-              <span className="text-gray-900 font-medium">
-                {totalReputation.toFixed(0)} / {nextLevel.minReputation}
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className={`h-2 rounded-full transition-all duration-300 ${nextLevel.color}`}
-                style={{ width: `${Math.min(progressToNext, 100)}%` }}
-              ></div>
-            </div>
-          </div>
-        )}
+        <ReputationProgress reputation={totalReputation} />
 
         <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-100">
           <div className="text-center">

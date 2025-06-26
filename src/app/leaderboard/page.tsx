@@ -6,6 +6,7 @@ import { Trophy, Medal, Award, Star, TrendingUp } from 'lucide-react'
 import { REPUTATION_LEVELS } from '@/types'
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false })
+const ReputationBadge = dynamic(() => import('@/components/ReputationBadge'), { ssr: false })
 
 interface LeaderboardUser {
   address: string
@@ -205,9 +206,7 @@ export default function LeaderboardPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white ${getLevelColor(user.level)}`}>
-                          {user.level}
-                        </span>
+                        <ReputationBadge reputation={user.reputation} size="sm" />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
