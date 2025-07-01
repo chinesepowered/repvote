@@ -204,6 +204,105 @@ export default function Home() {
     }
   }
 
+  const handleAcceptVouch = async (address: string, amount: number) => {
+    try {
+      console.log('Accepting vouch:', { address, amount })
+      setLoading(true)
+      
+      // Import flowHelpers dynamically
+      const { flowHelpers } = await import('@/lib/flowHelpers')
+      
+      // Execute the accept vouch transaction on blockchain
+      const txId = await flowHelpers.acceptVouch(address, amount)
+      console.log('Accept vouch transaction successful:', txId)
+      
+      // Refresh user profile after successful transaction
+      await loadUserProfile()
+    } catch (error) {
+      console.error('Failed to accept vouch:', error)
+      alert('Failed to accept vouch. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRemoveReceivedVouch = async (address: string) => {
+    try {
+      console.log('Removing received vouch:', address)
+      setLoading(true)
+      
+      // Import flowHelpers dynamically
+      const { flowHelpers } = await import('@/lib/flowHelpers')
+      
+      // Execute the remove received vouch transaction on blockchain
+      const txId = await flowHelpers.removeReceivedVouch(address)
+      console.log('Remove received vouch transaction successful:', txId)
+      
+      // Refresh user profile after successful transaction
+      await loadUserProfile()
+    } catch (error) {
+      console.error('Failed to remove received vouch:', error)
+      alert('Failed to remove received vouch. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Function to detect pending vouches (vouches created for this user but not yet accepted)
+  const getPendingVouches = async (): Promise<Array<{ address: string; amount: number }>> => {
+    if (!profile) return []
+    
+    try {
+      const { flowHelpers } = await import('@/lib/flowHelpers')
+      const pendingVouches: Array<{ address: string; amount: number }> = []
+      
+      // For demo purposes, we'll check a few known addresses
+      // In a production system, this would be done through events or indexing
+      const potentialVouchers = [
+        '0x1d007d755706c469', 
+        '0x26cc4629675aa875',
+        '0x01cf0e2f2f715450'
+      ]
+      
+      for (const voucherAddress of potentialVouchers) {
+        if (voucherAddress === user.addr) continue // Skip self
+        
+                 try {
+           const voucherProfile = await flowHelpers.getUserProfile(voucherAddress)
+           if (voucherProfile && user.addr && voucherProfile.activeVouches[user.addr] !== undefined) {
+             const amount = voucherProfile.activeVouches[user.addr!]
+             
+             // Check if we haven't already accepted this vouch
+             if (!profile.vouchesReceived[voucherAddress]) {
+               pendingVouches.push({
+                 address: voucherAddress,
+                 amount: amount
+               })
+             }
+           }
+        } catch (error) {
+          // Ignore errors for individual voucher checks
+          console.log(`No profile found for ${voucherAddress}`)
+        }
+      }
+      
+      return pendingVouches
+    } catch (error) {
+      console.error('Error getting pending vouches:', error)
+      return []
+    }
+  }
+
+  // State for pending vouches
+  const [pendingVouches, setPendingVouches] = useState<Array<{ address: string; amount: number }>>([])
+
+  // Load pending vouches when profile changes
+  useEffect(() => {
+    if (profile && user.addr) {
+      getPendingVouches().then(setPendingVouches)
+    }
+  }, [profile, user.addr])
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -240,6 +339,9 @@ export default function Home() {
                       profile={profile}
                       onVouch={handleVouch}
                       onRevoke={handleRevoke}
+                      onAcceptVouch={handleAcceptVouch}
+                      onRemoveReceivedVouch={handleRemoveReceivedVouch}
+                      pendingVouches={pendingVouches}
                     />
                   </div>
                 </div>

@@ -5,7 +5,7 @@ import { UserProfile } from '@/types'
 const GET_USER_PROFILE = `
 import RepVouch from 0xRepVouch
 
-pub fun main(address: Address): RepVouch.UserProfile? {
+access(all) fun main(address: Address): RepVouch.UserProfile? {
     return RepVouch.getUserProfile(address: address)
 }
 `
@@ -14,10 +14,10 @@ pub fun main(address: Address): RepVouch.UserProfile? {
 const GET_REPUTATION = `
 import RepVouch from 0xRepVouch
 
-pub fun main(address: Address): UFix64? {
+access(all) fun main(address: Address): UFix64? {
     let userRef = getAccount(address)
-        .getCapability(RepVouch.UserPublicPath)
-        .borrow<&RepVouch.User{RepVouch.UserPublic}>()
+        .capabilities.get<&{RepVouch.UserPublic}>(RepVouch.UserPublicPath)
+        .borrow()
     
     return userRef?.getTotalReputation()
 }
@@ -28,18 +28,18 @@ const SETUP_USER = `
 import RepVouch from 0xRepVouch
 
 transaction {
-    prepare(signer: AuthAccount) {
-        if signer.borrow<&RepVouch.User>(from: RepVouch.UserStoragePath) == nil {
-            let adminRef = signer.borrow<&RepVouch.Admin>(from: RepVouch.AdminStoragePath)
-                ?? panic("Admin resource not found")
+    prepare(signer: auth(Storage, Capabilities) &Account) {
+        // Check if user already has a RepVouch user resource
+        if signer.storage.borrow<&RepVouch.User>(from: RepVouch.UserStoragePath) == nil {
+            // For now, create user directly (in production, this would be controlled)
+            let user <- RepVouch.createUser(userAddress: signer.address)
             
-            let user <- adminRef.createUser(userAddress: signer.address)
-            signer.save(<-user, to: RepVouch.UserStoragePath)
+            // Save user resource to storage
+            signer.storage.save(<-user, to: RepVouch.UserStoragePath)
             
-            signer.link<&RepVouch.User{RepVouch.UserPublic}>(
-                RepVouch.UserPublicPath,
-                target: RepVouch.UserStoragePath
-            )
+            // Create public capability using Cadence 1.0 syntax
+            let userCap = signer.capabilities.storage.issue<&RepVouch.User>(RepVouch.UserStoragePath)
+            signer.capabilities.publish(userCap, at: RepVouch.UserPublicPath)
         }
     }
     
@@ -56,19 +56,27 @@ import RepVouch from 0xRepVouch
 transaction(voucheeAddress: Address, amount: UFix64) {
     let voucherRef: &RepVouch.User
     
-    prepare(signer: AuthAccount) {
-        self.voucherRef = signer.borrow<&RepVouch.User>(from: RepVouch.UserStoragePath)
+    prepare(signer: auth(Storage, Capabilities) &Account) {
+        self.voucherRef = signer.storage.borrow<&RepVouch.User>(from: RepVouch.UserStoragePath)
             ?? panic("Could not borrow user reference")
     }
     
     execute {
-        RepVouch.createVouch(
-            voucherId: self.voucherRef.profile.address,
-            voucheeAddress: voucheeAddress,
-            amount: amount
-        )
+        // Validate that vouchee exists and get their public capability
+        let voucheeCap = getAccount(voucheeAddress).capabilities.get<&{RepVouch.UserPublic}>(RepVouch.UserPublicPath)
+        let voucheeRef = voucheeCap.borrow() ?? panic("Vouchee not found")
         
-        log("Vouch created successfully")
+        // Create the vouch on voucher's side
+        if self.voucherRef.createVouch(vouchee: voucheeAddress, amount: amount) {
+            // Emit the event
+            RepVouch.emitVouchCreated(
+                voucherId: self.voucherRef.profile.address,
+                voucheeId: voucheeAddress,
+                amount: amount
+            )
+            
+            log("Vouch created successfully")
+        }
     }
 }
 `
@@ -80,18 +88,80 @@ import RepVouch from 0xRepVouch
 transaction(voucheeAddress: Address) {
     let voucherRef: &RepVouch.User
     
-    prepare(signer: AuthAccount) {
-        self.voucherRef = signer.borrow<&RepVouch.User>(from: RepVouch.UserStoragePath)
+    prepare(signer: auth(Storage, Capabilities) &Account) {
+        self.voucherRef = signer.storage.borrow<&RepVouch.User>(from: RepVouch.UserStoragePath)
             ?? panic("Could not borrow user reference")
     }
     
     execute {
-        RepVouch.revokeVouch(
-            voucherId: self.voucherRef.profile.address,
-            voucheeAddress: voucheeAddress
-        )
+        // Revoke the vouch on voucher's side
+        if let amount = self.voucherRef.revokeVouch(vouchee: voucheeAddress) {
+            // Emit the revocation event
+            RepVouch.emitVouchRevoked(
+                voucherId: self.voucherRef.profile.address,
+                voucheeId: voucheeAddress,
+                amount: amount
+            )
+            
+            log("Vouch revoked successfully")
+        } else {
+            panic("No active vouch found for this address")
+        }
+    }
+}
+`
+
+// Transaction to accept vouch
+const ACCEPT_VOUCH = `
+import RepVouch from 0xRepVouch
+
+transaction(voucherAddress: Address, amount: UFix64) {
+    let voucheeRef: &RepVouch.User
+    
+    prepare(signer: auth(Storage, Capabilities) &Account) {
+        self.voucheeRef = signer.storage.borrow<&RepVouch.User>(from: RepVouch.UserStoragePath)
+            ?? panic("Could not borrow user reference")
+    }
+    
+    execute {
+        // Validate that the voucher exists and has actually created this vouch
+        let voucherCap = getAccount(voucherAddress).capabilities.get<&{RepVouch.UserPublic}>(RepVouch.UserPublicPath)
+        let voucherRef = voucherCap.borrow() ?? panic("Voucher not found")
         
-        log("Vouch revoked successfully")
+        // Check if the voucher has an active vouch for this vouchee
+        let voucherProfile = voucherRef.getUserProfile()
+        if let vouchAmount = voucherProfile.activeVouches[self.voucheeRef.profile.address] {
+            // Verify the amount matches
+            if vouchAmount == amount {
+                // Accept the vouch
+                self.voucheeRef.receiveVouch(voucher: voucherAddress, amount: amount)
+                log("Vouch accepted successfully")
+            } else {
+                panic("Vouch amount mismatch")
+            }
+        } else {
+            panic("No active vouch found from this voucher")
+        }
+    }
+}
+`
+
+// Transaction to remove received vouch
+const REMOVE_RECEIVED_VOUCH = `
+import RepVouch from 0xRepVouch
+
+transaction(voucherAddress: Address) {
+    let voucheeRef: &RepVouch.User
+    
+    prepare(signer: auth(Storage, Capabilities) &Account) {
+        self.voucheeRef = signer.storage.borrow<&RepVouch.User>(from: RepVouch.UserStoragePath)
+            ?? panic("Could not borrow user reference")
+    }
+    
+    execute {
+        // Remove the received vouch (called after a voucher revokes)
+        self.voucheeRef.removeReceivedVouch(voucher: voucherAddress)
+        log("Received vouch removed successfully")
     }
 }
 `
@@ -180,6 +250,47 @@ export const flowHelpers = {
       return transactionId
     } catch (error) {
       console.error('Error revoking vouch:', error)
+      throw error
+    }
+  },
+
+  async acceptVouch(voucherAddress: string, amount: number): Promise<string> {
+    try {
+      const transactionId = await fcl.mutate({
+        cadence: ACCEPT_VOUCH,
+        args: (arg: any, t: any) => [
+          arg(voucherAddress, t.Address),
+          arg(amount.toFixed(1), t.UFix64)
+        ],
+        proposer: fcl.currentUser,
+        payer: fcl.currentUser,
+        authorizations: [fcl.currentUser],
+        limit: 1000
+      })
+      
+      await fcl.tx(transactionId).onceSealed()
+      return transactionId
+    } catch (error) {
+      console.error('Error accepting vouch:', error)
+      throw error
+    }
+  },
+
+  async removeReceivedVouch(voucherAddress: string): Promise<string> {
+    try {
+      const transactionId = await fcl.mutate({
+        cadence: REMOVE_RECEIVED_VOUCH,
+        args: (arg: any, t: any) => [arg(voucherAddress, t.Address)],
+        proposer: fcl.currentUser,
+        payer: fcl.currentUser,
+        authorizations: [fcl.currentUser],
+        limit: 1000
+      })
+      
+      await fcl.tx(transactionId).onceSealed()
+      return transactionId
+    } catch (error) {
+      console.error('Error removing received vouch:', error)
       throw error
     }
   }

@@ -1,4 +1,4 @@
-import RepVouch from 0xREPVOUCH_ADDRESS
+import RepVouch from 0x26cc4629675aa875
 
 pub fun main(address: Address): UFix64? {
     let userRef = getAccount(address)

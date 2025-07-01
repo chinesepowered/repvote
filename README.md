@@ -6,15 +6,16 @@
 
 > **Built for Flow Hackathon - Decentralized Economies, Governance & Science Track**
 
-RepVouch is a decentralized reputation system where community members can vouch for each other by temporarily lending their reputation points. Built on Flow blockchain with Cadence smart contracts.
+RepVouch is a decentralized reputation system where community members can vouch for each other through a secure two-step process. Built on Flow blockchain with Cadence smart contracts, it creates transparent and immutable reputation relationships.
 
 ## 🚀 Features
 
+- **Two-Step Vouching**: Secure vouching process requiring explicit acceptance
 - **Decentralized Reputation**: Transparent, immutable reputation stored on Flow blockchain
-- **Community Vouching**: Lend up to 10% of your reputation to people you trust
-- **Dynamic System**: Vouches can be revoked, creating fluid reputation flow
+- **Community Trust**: Build trust through verified vouching relationships
+- **Dynamic System**: Vouches can be created, accepted, and revoked
 - **Gamified Levels**: Progress through reputation tiers to unlock new features
-- **Social Proof**: View vouching history and community trust relationships
+- **Trust Visualization**: Interactive network graph of vouching relationships
 
 ## 🎯 Use Cases
 
@@ -27,16 +28,30 @@ RepVouch is a decentralized reputation system where community members can vouch 
 ## 🛠 Technology Stack
 
 - **Frontend**: Next.js 15 with TypeScript and Tailwind CSS
-- **Blockchain**: Flow blockchain with Cadence smart contracts
+- **Blockchain**: Flow blockchain with Cadence 1.0 smart contracts
 - **Wallet**: Flow Control Library (FCL) for wallet integration
 - **UI**: Lucide React icons and Framer Motion animations
 
 ## 📋 How It Works
 
-1. **Join**: Connect your Flow wallet and receive 10 base reputation points
-2. **Vouch**: Lend up to 10% of your reputation to trusted community members (5 slots max)
-3. **Build**: Gain reputation through vouches and community contributions
-4. **Unlock**: Higher reputation levels unlock voting rights, proposals, and exclusive features
+### Two-Step Vouching Process
+
+1. **Create Vouch**: Voucher creates a vouch for another user (allocates their reputation)
+2. **Accept Vouch**: Vouchee must explicitly accept the vouch to receive reputation benefits
+3. **Revoke**: Either party can revoke the vouching relationship
+4. **Remove**: Vouchee removes the received vouch after revocation
+
+This two-step process ensures:
+- **Explicit Consent**: Both parties must agree to the vouching relationship
+- **Security**: No unauthorized reputation changes
+- **Transparency**: Clear audit trail of all vouching actions
+
+### Reputation System
+
+- **Base Reputation**: Every user starts with 10 reputation points
+- **Vouch Power**: Users can vouch up to 10% of their total reputation
+- **Vouch Slots**: Maximum of 5 active vouches per user
+- **Dynamic Updates**: Reputation changes in real-time with vouching activity
 
 ## 🎮 Reputation Levels
 
@@ -77,7 +92,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 Create a `.env.local` file:
 
 ```env
-NEXT_PUBLIC_REPVOUCH_CONTRACT_ADDRESS=0x1d007d755706c469
+NEXT_PUBLIC_REPVOUCH_CONTRACT_ADDRESS=0x26cc4629675aa875
 ```
 
 ## 📁 Project Structure
@@ -91,7 +106,7 @@ src/
 ├── components/            # React components
 │   ├── Header.tsx         # Navigation header
 │   ├── ReputationCard.tsx # User reputation display
-│   └── VouchingInterface.tsx # Vouching UI
+│   └── VouchingInterface.tsx # Vouching UI with two-step process
 ├── lib/                   # Utilities and helpers
 │   ├── flow.ts           # Flow configuration
 │   └── flowHelpers.ts    # Blockchain interaction
@@ -99,24 +114,64 @@ src/
 └── cadence/              # Smart contracts
     ├── contracts/        # Cadence contracts
     ├── transactions/     # Blockchain transactions
+    │   ├── setup_user.cdc        # User initialization
+    │   ├── create_vouch.cdc      # Create vouch (step 1)
+    │   ├── accept_vouch.cdc      # Accept vouch (step 2)
+    │   ├── revoke_vouch.cdc      # Revoke existing vouch
+    │   └── remove_received_vouch.cdc # Remove received vouch
     └── scripts/          # Query scripts
 ```
 
 ## 🔗 Smart Contracts
 
-The RepVouch system is powered by Cadence smart contracts on Flow:
+The RepVouch system is powered by Cadence 1.0 smart contracts on Flow:
 
-- **RepVouch.cdc**: Main contract handling users, vouches, and reputation
-- **Transactions**: Setup users, create/revoke vouches
-- **Scripts**: Query user profiles and reputation data
+### Main Contract: RepVouch.cdc
 
-Key contract features:
-- Quadratic reputation scaling to prevent monopolies
-- Temporary vouching with revocation capability
-- Event emission for transparency
-- Resource-based security model
+- **User Management**: Create and manage user profiles
+- **Vouching Logic**: Handle vouch creation and validation
+- **Reputation Calculation**: Dynamic reputation scoring
+- **Event Emission**: Transparent activity logging
+
+### Two-Step Transaction Flow
+
+#### Creating a Vouch
+```cadence
+// 1. Voucher creates vouch
+import RepVouch from 0x26cc4629675aa875
+
+transaction(voucheeAddress: Address, amount: UFix64) {
+    // Validates voucher has sufficient reputation
+    // Creates vouch on voucher's side
+    // Emits VouchCreated event
+}
+```
+
+#### Accepting a Vouch
+```cadence
+// 2. Vouchee accepts vouch
+import RepVouch from 0x26cc4629675aa875
+
+transaction(voucherAddress: Address, amount: UFix64) {
+    // Validates vouch exists and amount matches
+    // Applies reputation benefit to vouchee
+    // Creates vouching relationship
+}
+```
+
+### Key Features
+- **Cadence 1.0 Compatibility**: Updated authorization patterns
+- **Resource-Based Security**: Secure storage access patterns
+- **Event-Driven Architecture**: Complete audit trail
+- **Explicit Consent Model**: Two-step approval process
 
 ## 🌐 Deployment
+
+### Testnet Deployment
+
+The contract is deployed on Flow Testnet:
+- **Contract Address**: `0x26cc4629675aa875`
+- **Network**: Flow Testnet
 
 ### Vercel (Recommended)
 
@@ -156,18 +211,20 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Track**: Decentralized Economies, Governance & Science
 
-RepVouch addresses the challenge of "unlocking coordination at the speed of the internet" by creating a transparent, community-driven reputation system that can be used across various platforms and use cases. It demonstrates how blockchain technology can create economic engines that reward open collaboration.
+RepVouch addresses the challenge of "unlocking coordination at the speed of the internet" by creating a transparent, community-driven reputation system. The two-step vouching process ensures security while maintaining the decentralized ethos of Web3.
 
-**Key Innovation**: Dynamic reputation vouching system that creates social proof and community trust without centralized authority.
+**Key Innovation**: Secure two-step vouching system that requires explicit consent from both parties, preventing unauthorized reputation manipulation while enabling fluid trust relationships.
 
 ## 🔮 Future Roadmap
 
+- [ ] Enhanced pending vouch detection via event indexing
 - [ ] Multi-chain support (Ethereum, Polygon)
 - [ ] Integration with GitHub for code reviewer reputation
 - [ ] DAO governance features and proposal system  
 - [ ] Reputation-based token rewards
 - [ ] Mobile app development
 - [ ] API for third-party integrations
+- [ ] Advanced analytics and trust scoring
 
 ## 📞 Contact
 

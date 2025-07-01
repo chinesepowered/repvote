@@ -1,20 +1,18 @@
-import RepVouch from 0xREPVOUCH_ADDRESS
+import RepVouch from 0x26cc4629675aa875
 
 transaction {
-    prepare(signer: AuthAccount) {
+    prepare(signer: auth(Storage, Capabilities) &Account) {
         // Check if user already has a RepVouch user resource
-        if signer.borrow<&RepVouch.User>(from: RepVouch.UserStoragePath) == nil {
-            // Create user resource using public function
+        if signer.storage.borrow<&RepVouch.User>(from: RepVouch.UserStoragePath) == nil {
+            // For now, create user directly (in production, this would be controlled)
             let user <- RepVouch.createUser(userAddress: signer.address)
             
             // Save user resource to storage
-            signer.save(<-user, to: RepVouch.UserStoragePath)
+            signer.storage.save(<-user, to: RepVouch.UserStoragePath)
             
-            // Create public capability
-            signer.link<&RepVouch.User{RepVouch.UserPublic}>(
-                RepVouch.UserPublicPath,
-                target: RepVouch.UserStoragePath
-            )
+            // Create public capability using Cadence 1.0 syntax
+            let userCap = signer.capabilities.storage.issue<&RepVouch.User>(RepVouch.UserStoragePath)
+            signer.capabilities.publish(userCap, at: RepVouch.UserPublicPath)
         }
     }
     
