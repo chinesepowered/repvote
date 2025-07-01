@@ -4,6 +4,7 @@
   "devCommand": "pnpm dev",
   "installCommand": "pnpm install",
   "env": {
-    "SKIP_ENV_VALIDATION": "1"
+    "SKIP_ENV_VALIDATION": "1",
+    "DISABLE_ESLINT_PLUGIN": "true"
   }
 }

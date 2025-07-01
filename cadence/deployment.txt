@@ -1,0 +1,7 @@
+PS C:\code\repvote> flow project deploy --network testnet --update
+
+Deploying 1 contracts for accounts: testnet-account
+
+RepVouch -> 0x26cc4629675aa875 (a6c747553615a019baa2d22e42e5c9b510817eb723ddfdf216722874e290f2f6) [updated]
+
+ All contracts deployed successfully

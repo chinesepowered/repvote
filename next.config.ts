@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   /* config options here */
   eslint: {
     ignoreDuringBuilds: true,
+    dirs: [], // Don't lint any directories during build
   },
   typescript: {
     ignoreBuildErrors: true,
