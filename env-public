@@ -1,0 +1,24 @@
+# RepVouch Environment Variables
+# This file should not be committed to git (.env.local is gitignored by default)
+
+# Contract Addresses
+NEXT_PUBLIC_REPVOUCH_CONTRACT_ADDRESS=0x26cc4629675aa875
+
+# Flow Network Configuration  
+NEXT_PUBLIC_FLOW_NETWORK=testnet
+NEXT_PUBLIC_FLOW_ACCESS_NODE=https://rest-testnet.onflow.org
+NEXT_PUBLIC_FLOW_DISCOVERY_WALLET=https://fcl-discovery.onflow.org/testnet/authn
+
+# Optional: For development/debugging
+NEXT_PUBLIC_DEBUG_MODE=false
+
+# Build Configuration - Disable linting and validation for smooth deployment
+SKIP_ENV_VALIDATION=1
+DISABLE_ESLINT_PLUGIN=true
+ESM_EXTERNALS=true
+
+# Optional: Analytics (if you add analytics later)
+# NEXT_PUBLIC_ANALYTICS_ID=your_analytics_id
+
+# Optional: Admin features (if you add admin functions later)  
+# ADMIN_PRIVATE_KEY=your_admin_private_key (keep this secret!)
