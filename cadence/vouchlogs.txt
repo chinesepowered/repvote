@@ -1,0 +1,46 @@
+Creating vouch: 1 reputation points for 0xecb8d6f1b3a8639f
+page.tsx:266 👤 Voucher: 0xd1d10aece2d61b9c
+page.tsx:267 🎯 Vouchee: 0xecb8d6f1b3a8639f
+page.tsx:275 🔍 Checking if vouchee has a RepVouch profile...
+page.tsx:285 ✅ Vouchee profile found! They have 10 total reputation
+page.tsx:288 🚀 Submitting vouch transaction to Flow blockchain...
+5fbb6_@walletconnect_core_dist_index_es_d9653561.js:1706 {time: 1751422394529, level: 40, context: 'core/relayer', msg: 'Starting WS connection skipped because the client has no topics to work with.'}
+forwardToConsole @ browser.js:358
+appendToLogs @ browser.js:358
+write @ browser.js:358
+write @ browser.js:358
+LOG @ browser.js:201
+(anonymous) @ browser.js:266
+(anonymous) @ browser.js:266
+transportOpen @ 5fbb6_@walletconnect_core_dist_index_es_d9653561.js:1706
+(anonymous) @ 5fbb6_@walletconnect_core_dist_index_es_d9653561.js:1861
+await in (anonymous)
+emit @ events.js:158
+pulse @ index.ts:1
+(anonymous) @ index.ts:1Understand this warning
+5fbb6_@walletconnect_core_dist_index_es_d9653561.js:1706 {time: 1751422399529, level: 40, context: 'core/relayer', msg: 'Starting WS connection skipped because the client has no topics to work with.'}
+forwardToConsole @ browser.js:358
+appendToLogs @ browser.js:358
+write @ browser.js:358
+write @ browser.js:358
+LOG @ browser.js:201
+(anonymous) @ browser.js:266
+(anonymous) @ browser.js:266
+transportOpen @ 5fbb6_@walletconnect_core_dist_index_es_d9653561.js:1706
+(anonymous) @ 5fbb6_@walletconnect_core_dist_index_es_d9653561.js:1861
+await in (anonymous)
+emit @ events.js:158
+pulse @ index.ts:1
+(anonymous) @ index.ts:1Understand this warning
+page.tsx:290 ✅ VOUCH TRANSACTION SUCCESSFUL! TX ID: 1417a14f611bc989f2411fb27bbcdaff58738d49113a52c0819502cb42ef423c
+page.tsx:291 📋 Next step: The vouchee needs to accept this vouch to receive the reputation benefit
+page.tsx:294 🔄 Refreshing your profile to show updated vouch status...
+page.tsx:106 🔍 Loading user profile for address: 0xd1d10aece2d61b9c
+page.tsx:113 📡 Querying blockchain for existing user profile...
+page.tsx:158 ✅ EXISTING USER FOUND on blockchain:
+page.tsx:159    - Address: 0xd1d10aece2d61b9c
+page.tsx:160    - User ID: 1
+page.tsx:161    - Total Reputation: 10
+page.tsx:162    - Active Vouches: 1
+page.tsx:163    - Vouches Received: 0
+page.tsx:174 ✅ User profile loading complete!
