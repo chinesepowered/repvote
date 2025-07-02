@@ -250,7 +250,7 @@ export default function LiveTransactionFeed({
                       
                       {tx.txHash && (
                         <a
-                          href={`https://testnet.flowscan.org/transaction/${tx.txHash}`}
+                          href={`https://testnet.flowscan.io/tx/${tx.txHash}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-blue-600 hover:text-blue-800 flex items-center space-x-1"

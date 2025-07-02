@@ -46,17 +46,8 @@ export default function TrustNetworkVisualization({
 
   // Generate mock network data
   const generateNetworkData = () => {
-    const nodes: NetworkNode[] = [
-      // Current user (if exists)
-      ...(currentUser ? [{
-        id: currentUser.address,
-        address: currentUser.address,
-        reputation: currentUser.baseReputation + currentUser.vouchedReputation,
-        level: 'Current User',
-        vouchCount: currentUser.vouchCount,
-        group: 1
-      }] : []),
-      // Mock network users
+    // Create a comprehensive mock network with predefined addresses
+    const mockNodes: NetworkNode[] = [
       {
         id: '0x1234567890abcdef',
         address: '0x1234567890abcdef',
@@ -136,10 +127,44 @@ export default function TrustNetworkVisualization({
         level: 'Trusted',
         vouchCount: 1,
         group: 2
+      },
+      // Add demo wallet addresses as mock nodes
+      {
+        id: '0xd1d10aece2d61b9c',
+        address: '0xd1d10aece2d61b9c',
+        reputation: 12.0,
+        level: 'Demo User Alpha',
+        vouchCount: 1,
+        group: 1
+      },
+      {
+        id: '0xecb8d6f1b3a8639f',
+        address: '0xecb8d6f1b3a8639f',
+        reputation: 11.0,
+        level: 'Demo User Beta',
+        vouchCount: 1,
+        group: 1
       }
     ]
 
-    const links: NetworkLink[] = [
+    // Add current user to nodes if they exist and aren't already in mock data
+    const nodes: NetworkNode[] = [...mockNodes]
+    if (currentUser && !nodes.find(n => n.id === currentUser.address)) {
+      nodes.push({
+        id: currentUser.address,
+        address: currentUser.address,
+        reputation: currentUser.baseReputation + currentUser.vouchedReputation,
+        level: 'Current User',
+        vouchCount: currentUser.vouchCount,
+        group: 1
+      })
+    }
+
+    // Create a set of valid node IDs for link validation
+    const validNodeIds = new Set(nodes.map(n => n.id))
+
+    // Define links only between nodes that exist
+    const baseLinks: NetworkLink[] = [
       // High-reputation users vouching for others
       { source: '0x1234567890abcdef', target: '0xabcdef1234567890', value: 15.5, type: 'vouch' },
       { source: '0x1234567890abcdef', target: '0xfedcba9876543210', value: 12.0, type: 'vouch' },
@@ -151,21 +176,38 @@ export default function TrustNetworkVisualization({
       { source: '0x13579bdf2468ace0', target: '0xc2c2c2c2c2c2c2c2', value: 1.8, type: 'vouch' },
       { source: '0x987654321fedcba0', target: '0xd3d3d3d3d3d3d3d3', value: 1.2, type: 'vouch' },
       
-      // Add current user connections if they exist
-      ...(currentUser && Object.keys(currentUser.activeVouches).length > 0 
-        ? Object.entries(currentUser.activeVouches).map(([address, amount]) => ({
-            source: currentUser.address,
-            target: address,
-            value: amount,
-            type: 'vouch' as const
-          }))
-        : []
-      ),
+      // Demo connections for visualization
+      { source: '0xd1d10aece2d61b9c', target: '0xecb8d6f1b3a8639f', value: 1.0, type: 'vouch' },
+      { source: '0x5a5a5a5a5a5a5a5a', target: '0xd1d10aece2d61b9c', value: 0.8, type: 'vouch' },
+      { source: '0xb1b1b1b1b1b1b1b1', target: '0xecb8d6f1b3a8639f', value: 0.6, type: 'vouch' },
       
       // Cross-connections to show network effect
       { source: '0x5a5a5a5a5a5a5a5a', target: '0xb1b1b1b1b1b1b1b1', value: 0.8, type: 'vouch' },
       { source: '0xb1b1b1b1b1b1b1b1', target: '0xc2c2c2c2c2c2c2c2', value: 0.5, type: 'vouch' }
     ]
+
+    // Filter links to only include valid connections
+    const validLinks = baseLinks.filter(link => 
+      validNodeIds.has(typeof link.source === 'string' ? link.source : link.source.id) &&
+      validNodeIds.has(typeof link.target === 'string' ? link.target : link.target.id)
+    )
+
+    // Add current user connections only if the target nodes exist in our mock data
+    const currentUserLinks: NetworkLink[] = []
+    if (currentUser && Object.keys(currentUser.activeVouches).length > 0) {
+      Object.entries(currentUser.activeVouches).forEach(([address, amount]) => {
+        if (validNodeIds.has(address)) {
+          currentUserLinks.push({
+            source: currentUser.address,
+            target: address,
+            value: amount,
+            type: 'vouch'
+          })
+        }
+      })
+    }
+
+    const links = [...validLinks, ...currentUserLinks]
 
     return { nodes, links }
   }

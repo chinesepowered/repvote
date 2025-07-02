@@ -12,6 +12,7 @@ const LiveTransactionFeed = dynamic(() => import('@/components/LiveTransactionFe
 const AchievementNotification = dynamic(() => import('@/components/AchievementNotification'), { ssr: false })
 const TrustNetworkVisualization = dynamic(() => import('@/components/TrustNetworkVisualization'), { ssr: false })
 const ClientOnly = dynamic(() => import('@/components/ClientOnly'), { ssr: false })
+const TransactionStatusDialog = dynamic(() => import('@/components/TransactionStatusDialog'), { ssr: false })
 
 export default function Home() {
   const [user, setUser] = useState({ loggedIn: false, addr: null })
@@ -22,6 +23,15 @@ export default function Home() {
   const [showNetworkViz, setShowNetworkViz] = useState(false)
   const [hasMounted, setHasMounted] = useState(false)
   const [pendingVouches, setPendingVouches] = useState<Array<{ address: string; amount: number }>>([])
+  const [transactionDialog, setTransactionDialog] = useState<{
+    isOpen: boolean
+    transaction: {
+      type: 'vouch' | 'revoke' | 'accept' | 'remove'
+      txId: string
+      amount?: number
+      message: string
+    } | null
+  }>({ isOpen: false, transaction: null })
 
   // Ensure proper hydration
   useEffect(() => {
@@ -51,6 +61,8 @@ export default function Home() {
   const getPendingVouches = async (): Promise<Array<{ address: string; amount: number }>> => {
     if (!profile) return []
     
+    console.log(`🔍 Checking for pending vouches for ${user.addr}...`)
+    
     try {
       const { flowHelpers } = await import('@/lib/flowHelpers')
       const pendingVouches: Array<{ address: string; amount: number }> = []
@@ -58,44 +70,64 @@ export default function Home() {
       // For demo purposes, we'll check a few known addresses
       // In a production system, this would be done through events or indexing
       const potentialVouchers = [
-        '0x1d007d755706c469', 
-        '0x26cc4629675aa875',
-        '0x01cf0e2f2f715450'
+        '0x01cf0e2f2f715450',
+        // Add your demo wallet addresses
+        '0xd1d10aece2d61b9c',
+        '0xecb8d6f1b3a8639f'
       ]
       
+      console.log(`📋 Checking ${potentialVouchers.length} potential vouchers...`)
+      
       for (const voucherAddress of potentialVouchers) {
-        if (voucherAddress === user.addr) continue // Skip self
+        if (voucherAddress === user.addr) {
+          console.log(`⏭️ Skipping self: ${voucherAddress}`)
+          continue // Skip self
+        }
+        
+        console.log(`🔍 Checking voucher: ${voucherAddress}`)
         
         try {
           const voucherProfile = await flowHelpers.getUserProfile(voucherAddress)
           if (voucherProfile && user.addr && voucherProfile.activeVouches[user.addr] !== undefined) {
             const amount = voucherProfile.activeVouches[user.addr!]
+            console.log(`✅ Found active vouch from ${voucherAddress}: ${amount} points`)
             
             // Check if we haven't already accepted this vouch
             if (!profile.vouchesReceived[voucherAddress]) {
+              console.log(`🎉 PENDING VOUCH DETECTED! ${amount} points from ${voucherAddress}`)
               pendingVouches.push({
                 address: voucherAddress,
                 amount: amount
               })
+            } else {
+              console.log(`⚠️ Already accepted vouch from ${voucherAddress}`)
             }
           }
         } catch (error) {
           // Ignore errors for individual voucher checks
-          console.log(`No profile found for ${voucherAddress}`)
+          console.log(`❌ No profile found for ${voucherAddress}`)
         }
       }
       
+      console.log(`📊 Found ${pendingVouches.length} pending vouches total`)
       return pendingVouches
     } catch (error) {
-      console.error('Error getting pending vouches:', error)
+      console.error('❌ Error getting pending vouches:', error)
       return []
     }
   }
 
   // Load pending vouches when profile changes  
   useEffect(() => {
+    console.log(`🔄 useEffect triggered - profile: ${!!profile}, user.addr: ${user.addr}`)
     if (profile && user.addr) {
-      getPendingVouches().then(setPendingVouches)
+      console.log('✅ Conditions met, calling getPendingVouches...')
+      getPendingVouches().then((vouches) => {
+        console.log(`📥 Setting ${vouches.length} pending vouches in state`)
+        setPendingVouches(vouches)
+      })
+    } else {
+      console.log('❌ Conditions not met for checking pending vouches')
     }
   }, [profile, user.addr])
 
@@ -288,7 +320,19 @@ export default function Home() {
       console.log('🚀 Submitting vouch transaction to Flow blockchain...')
       const txId = await flowHelpers.createVouch(address, amount)
       console.log(`✅ VOUCH TRANSACTION SUCCESSFUL! TX ID: ${txId}`)
+      console.log(`🔗 View on Flowscan: https://testnet.flowscan.io/tx/${txId}`)
       console.log('📋 Next step: The vouchee needs to accept this vouch to receive the reputation benefit')
+      
+      // Show transaction success dialog
+      setTransactionDialog({
+        isOpen: true,
+        transaction: {
+          type: 'vouch',
+          txId: txId,
+          amount: amount,
+          message: `Successfully vouched ${amount} reputation points to ${address.slice(0, 8)}...${address.slice(-6)}`
+        }
+      })
       
       // Refresh user profile after successful transaction
       console.log('🔄 Refreshing your profile to show updated vouch status...')
@@ -308,20 +352,33 @@ export default function Home() {
 
   const handleRevoke = async (address: string) => {
     try {
-      console.log('Revoking vouch:', address)
+      console.log(`🔄 Revoking vouch for: ${address}`)
       setLoading(true)
       
       // Import flowHelpers dynamically
       const { flowHelpers } = await import('@/lib/flowHelpers')
       
       // Execute the revoke transaction on blockchain
+      console.log('🚀 Submitting revoke transaction to Flow blockchain...')
       const txId = await flowHelpers.revokeVouch(address)
-      console.log('Revoke transaction successful:', txId)
+      console.log(`✅ REVOKE TRANSACTION SUCCESSFUL! TX ID: ${txId}`)
+      console.log(`🔗 View on Flowscan: https://testnet.flowscan.io/tx/${txId}`)
+      
+      // Show transaction success dialog
+      setTransactionDialog({
+        isOpen: true,
+        transaction: {
+          type: 'revoke',
+          txId: txId,
+          message: `Successfully revoked vouch for ${address.slice(0, 8)}...${address.slice(-6)}`
+        }
+      })
       
       // Refresh user profile after successful transaction
+      console.log('🔄 Refreshing your profile...')
       await loadUserProfile()
     } catch (error) {
-      console.error('Failed to revoke vouch:', error)
+      console.error('❌ REVOKE FAILED:', error)
       alert('Failed to revoke vouch. Please try again.')
     } finally {
       setLoading(false)
@@ -343,7 +400,19 @@ export default function Home() {
       console.log('🚀 Submitting accept vouch transaction to Flow blockchain...')
       const txId = await flowHelpers.acceptVouch(address, amount)
       console.log(`✅ ACCEPT VOUCH SUCCESSFUL! TX ID: ${txId}`)
+      console.log(`🔗 View on Flowscan: https://testnet.flowscan.io/tx/${txId}`)
       console.log(`🎊 You should now have ${amount} additional reputation points!`)
+      
+      // Show transaction success dialog
+      setTransactionDialog({
+        isOpen: true,
+        transaction: {
+          type: 'accept',
+          txId: txId,
+          amount: amount,
+          message: `Successfully accepted vouch from ${address.slice(0, 8)}...${address.slice(-6)}`
+        }
+      })
       
       // Refresh user profile after successful transaction
       console.log('🔄 Refreshing your profile to show new reputation...')
@@ -358,20 +427,33 @@ export default function Home() {
 
   const handleRemoveReceivedVouch = async (address: string) => {
     try {
-      console.log('Removing received vouch:', address)
+      console.log(`🔄 Removing received vouch from: ${address}`)
       setLoading(true)
       
       // Import flowHelpers dynamically
       const { flowHelpers } = await import('@/lib/flowHelpers')
       
       // Execute the remove received vouch transaction on blockchain
+      console.log('🚀 Submitting remove vouch transaction to Flow blockchain...')
       const txId = await flowHelpers.removeReceivedVouch(address)
-      console.log('Remove received vouch transaction successful:', txId)
+      console.log(`✅ REMOVE VOUCH SUCCESSFUL! TX ID: ${txId}`)
+      console.log(`🔗 View on Flowscan: https://testnet.flowscan.io/tx/${txId}`)
+      
+      // Show transaction success dialog
+      setTransactionDialog({
+        isOpen: true,
+        transaction: {
+          type: 'remove',
+          txId: txId,
+          message: `Successfully removed received vouch from ${address.slice(0, 8)}...${address.slice(-6)}`
+        }
+      })
       
       // Refresh user profile after successful transaction
+      console.log('🔄 Refreshing your profile...')
       await loadUserProfile()
     } catch (error) {
-      console.error('Failed to remove received vouch:', error)
+      console.error('❌ REMOVE VOUCH FAILED:', error)
       alert('Failed to remove received vouch. Please try again.')
     } finally {
       setLoading(false)
@@ -569,6 +651,13 @@ export default function Home() {
         isOpen={showNetworkViz}
         onClose={() => setShowNetworkViz(false)}
         currentUser={profile}
+      />
+
+      {/* Transaction Status Dialog */}
+      <TransactionStatusDialog
+        isOpen={transactionDialog.isOpen}
+        onClose={() => setTransactionDialog({ isOpen: false, transaction: null })}
+        transaction={transactionDialog.transaction}
       />
     </div>
   )

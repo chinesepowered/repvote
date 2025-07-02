@@ -41,9 +41,9 @@ export default function Header() {
           </div>
           
           <nav className="hidden md:flex space-x-8">
-            <span className="text-gray-600 hover:text-gray-900 font-medium cursor-pointer">
+            <a href="/" className="text-gray-600 hover:text-gray-900 font-medium">
               Dashboard
-            </span>
+            </a>
             <a href="/leaderboard" className="text-gray-600 hover:text-gray-900 font-medium">
               Leaderboard
             </a>
