@@ -14,8 +14,9 @@ RepVouch is a decentralized reputation system where community members can vouch 
 - **Decentralized Reputation**: Transparent, immutable reputation stored on Flow blockchain
 - **Community Trust**: Build trust through verified vouching relationships
 - **Dynamic System**: Vouches can be created, accepted, and revoked
+- **Manual Vouch Discovery**: Check any Flow address for pending vouches
 - **Gamified Levels**: Progress through reputation tiers to unlock new features
-- **Trust Visualization**: Interactive network graph of vouching relationships
+- **Trust Visualization**: Interactive network graph of vouching relationships (demo data)
 
 ## 🎯 Use Cases
 
@@ -46,6 +47,14 @@ This two-step process ensures:
 - **Security**: No unauthorized reputation changes
 - **Transparency**: Clear audit trail of all vouching actions
 
+### Vouch Discovery
+
+RepVouch uses a manual discovery system for pending vouches:
+- **Manual Check**: Users can enter any Flow address to check for pending vouches
+- **Real-time Verification**: Direct blockchain queries for accurate results
+- **No Restrictions**: Works with any Flow wallet address
+- **Coordinate Outside App**: Users share addresses via social media, Discord, etc.
+
 ### Reputation System
 
 - **Base Reputation**: Every user starts with 10 reputation points
@@ -75,7 +84,7 @@ This two-step process ensures:
 
 ```bash
 # Clone the repository
-git clone https://github.com/repvouch/repvouch.git
+git clone <repository-url>
 cd repvouch
 
 # Install dependencies
@@ -86,6 +95,14 @@ pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Usage
+
+1. **Connect Wallet**: Connect your Flow wallet (Blocto, Dapper, etc.)
+2. **Setup Profile**: Run the user setup transaction
+3. **Create Vouches**: Vouch for other users using their Flow addresses
+4. **Check for Vouches**: Use the manual check feature to find pending vouches
+5. **Accept Vouches**: Accept vouches to receive reputation benefits
 
 ### Environment Variables
 
@@ -217,7 +234,8 @@ RepVouch addresses the challenge of "unlocking coordination at the speed of the 
 
 ## 🔮 Future Roadmap
 
-- [ ] Enhanced pending vouch detection via event indexing
+- [ ] Event indexing infrastructure for automatic vouch discovery
+- [ ] Enhanced trust network visualization with real user data
 - [ ] Multi-chain support (Ethereum, Polygon)
 - [ ] Integration with GitHub for code reviewer reputation
 - [ ] DAO governance features and proposal system  
@@ -228,8 +246,8 @@ RepVouch addresses the challenge of "unlocking coordination at the speed of the 
 
 ## 📞 Contact
 
-- **Website**: [repvouch.app](https://repvouch.app)
-- **Twitter**: [@repvouch](https://twitter.com/repvouch)
-- **Discord**: [Join our community](https://discord.gg/repvouch)
+For questions, feedback, or collaboration opportunities:
+- **GitHub Issues**: Submit issues or feature requests on this repository
+- **Flow Discord**: Find us in the Flow blockchain community channels
 
 Built with ❤️ for the Flow ecosystem and the future of decentralized reputation.
