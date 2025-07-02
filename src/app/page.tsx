@@ -103,23 +103,45 @@ export default function Home() {
     if (!user.addr) return
     
     setLoading(true)
+    console.log(`🔍 Loading user profile for address: ${user.addr}`)
+    
     try {
       // Import flowHelpers dynamically to avoid SSR issues
       const { flowHelpers } = await import('@/lib/flowHelpers')
       
       // Try to get user profile from blockchain
+      console.log('📡 Querying blockchain for existing user profile...')
       let userProfile = await flowHelpers.getUserProfile(user.addr)
       
       // If user doesn't exist on blockchain, try to set them up
       if (!userProfile) {
-        console.log('User not found on blockchain, attempting setup...')
+        console.log('❌ User not found on blockchain, attempting setup...')
+        console.log('🚀 Starting user setup transaction...')
+        
         try {
-          await flowHelpers.setupUser()
+          const setupTxId = await flowHelpers.setupUser()
+          console.log(`✅ Setup transaction submitted successfully! TX ID: ${setupTxId}`)
+          console.log('⏳ Waiting 3 seconds for blockchain to process...')
+          
           // Wait a bit for transaction to be processed
           await new Promise(resolve => setTimeout(resolve, 3000))
+          
+          console.log('📡 Checking if user profile was created...')
           userProfile = await flowHelpers.getUserProfile(user.addr)
+          
+          if (userProfile) {
+            console.log('🎉 USER SETUP SUCCESSFUL! Profile created on blockchain:')
+            console.log(`   - Address: ${userProfile.address}`)
+            console.log(`   - User ID: ${userProfile.userId}`)
+            console.log(`   - Base Reputation: ${userProfile.baseReputation}`)
+            console.log(`   - Created At: ${userProfile.createdAt}`)
+          } else {
+            console.log('⚠️ Profile still not found after setup - using fallback')
+          }
         } catch (setupError) {
-          console.error('Failed to setup user:', setupError)
+          console.error('❌ USER SETUP FAILED:', setupError)
+          console.log('🔄 Using fallback profile for demo purposes...')
+          
           // Fallback to basic profile for new users
           userProfile = {
             userId: "0",
@@ -132,6 +154,13 @@ export default function Home() {
             createdAt: 0 // Use fixed value for hydration consistency
           }
         }
+      } else {
+        console.log('✅ EXISTING USER FOUND on blockchain:')
+        console.log(`   - Address: ${userProfile.address}`)
+        console.log(`   - User ID: ${userProfile.userId}`)
+        console.log(`   - Total Reputation: ${userProfile.baseReputation + userProfile.vouchedReputation}`)
+        console.log(`   - Active Vouches: ${Object.keys(userProfile.activeVouches).length}`)
+        console.log(`   - Vouches Received: ${Object.keys(userProfile.vouchesReceived).length}`)
       }
       
       // Check for achievements
@@ -141,8 +170,12 @@ export default function Home() {
       
       setPreviousProfile(profile)
       setProfile(userProfile)
+      
+      console.log('✅ User profile loading complete!')
     } catch (error) {
-      console.error('Failed to load user profile:', error)
+      console.error('💥 CRITICAL ERROR loading user profile:', error)
+      console.log('🔄 Using emergency fallback profile...')
+      
       // Fallback profile if blockchain is unavailable
       const fallbackProfile: UserProfile = {
         userId: "0",
@@ -229,21 +262,45 @@ export default function Home() {
 
   const handleVouch = async (address: string, amount: number) => {
     try {
-      console.log('Creating vouch:', { address, amount })
+      console.log(`🤝 Creating vouch: ${amount} reputation points for ${address}`)
+      console.log(`👤 Voucher: ${user.addr}`)
+      console.log(`🎯 Vouchee: ${address}`)
+      
       setLoading(true)
       
       // Import flowHelpers dynamically
       const { flowHelpers } = await import('@/lib/flowHelpers')
       
+      // Check if vouchee exists first
+      console.log('🔍 Checking if vouchee has a RepVouch profile...')
+      const voucheeProfile = await flowHelpers.getUserProfile(address)
+      
+      if (!voucheeProfile) {
+        console.error(`❌ VOUCH FAILED: Vouchee ${address} does not have a RepVouch profile!`)
+        console.log('💡 Solution: The target user needs to connect their wallet to RepVouch first')
+        alert(`Cannot vouch for ${address.slice(0,8)}...\n\nThe target user needs to connect their wallet to RepVouch and create a profile first.`)
+        return
+      }
+      
+      console.log(`✅ Vouchee profile found! They have ${voucheeProfile.baseReputation + voucheeProfile.vouchedReputation} total reputation`)
+      
       // Execute the vouch transaction on blockchain
+      console.log('🚀 Submitting vouch transaction to Flow blockchain...')
       const txId = await flowHelpers.createVouch(address, amount)
-      console.log('Vouch transaction successful:', txId)
+      console.log(`✅ VOUCH TRANSACTION SUCCESSFUL! TX ID: ${txId}`)
+      console.log('📋 Next step: The vouchee needs to accept this vouch to receive the reputation benefit')
       
       // Refresh user profile after successful transaction
+      console.log('🔄 Refreshing your profile to show updated vouch status...')
       await loadUserProfile()
     } catch (error) {
-      console.error('Failed to create vouch:', error)
-      alert('Failed to create vouch. Please try again.')
+      console.error('❌ VOUCH FAILED:', error)
+      
+      if (error instanceof Error && error.message && error.message.includes('Vouchee not found')) {
+        alert(`Cannot vouch for this user.\n\nThe target address doesn't have a RepVouch profile yet. They need to connect their wallet and create a profile first.`)
+      } else {
+        alert('Failed to create vouch. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -273,20 +330,26 @@ export default function Home() {
 
   const handleAcceptVouch = async (address: string, amount: number) => {
     try {
-      console.log('Accepting vouch:', { address, amount })
+      console.log(`🎉 Accepting vouch: ${amount} reputation points from ${address}`)
+      console.log(`👤 Vouchee (you): ${user.addr}`)
+      console.log(`👥 Voucher: ${address}`)
+      
       setLoading(true)
       
       // Import flowHelpers dynamically
       const { flowHelpers } = await import('@/lib/flowHelpers')
       
       // Execute the accept vouch transaction on blockchain
+      console.log('🚀 Submitting accept vouch transaction to Flow blockchain...')
       const txId = await flowHelpers.acceptVouch(address, amount)
-      console.log('Accept vouch transaction successful:', txId)
+      console.log(`✅ ACCEPT VOUCH SUCCESSFUL! TX ID: ${txId}`)
+      console.log(`🎊 You should now have ${amount} additional reputation points!`)
       
       // Refresh user profile after successful transaction
+      console.log('🔄 Refreshing your profile to show new reputation...')
       await loadUserProfile()
     } catch (error) {
-      console.error('Failed to accept vouch:', error)
+      console.error('❌ ACCEPT VOUCH FAILED:', error)
       alert('Failed to accept vouch. Please try again.')
     } finally {
       setLoading(false)
