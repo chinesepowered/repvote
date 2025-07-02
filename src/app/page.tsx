@@ -57,78 +57,11 @@ export default function Home() {
     }
   }, [user])
 
-  // Function to detect pending vouches (vouches created for this user but not yet accepted)
-  const getPendingVouches = async (): Promise<Array<{ address: string; amount: number }>> => {
-    if (!profile) return []
-    
-    console.log(`🔍 Checking for pending vouches for ${user.addr}...`)
-    
-    try {
-      const { flowHelpers } = await import('@/lib/flowHelpers')
-      const pendingVouches: Array<{ address: string; amount: number }> = []
-      
-      // For demo purposes, we'll check a few known addresses
-      // In a production system, this would be done through events or indexing
-      const potentialVouchers = [
-        '0x01cf0e2f2f715450',
-        // Add your demo wallet addresses
-        '0xd1d10aece2d61b9c',
-        '0xecb8d6f1b3a8639f'
-      ]
-      
-      console.log(`📋 Checking ${potentialVouchers.length} potential vouchers...`)
-      
-      for (const voucherAddress of potentialVouchers) {
-        if (voucherAddress === user.addr) {
-          console.log(`⏭️ Skipping self: ${voucherAddress}`)
-          continue // Skip self
-        }
-        
-        console.log(`🔍 Checking voucher: ${voucherAddress}`)
-        
-        try {
-          const voucherProfile = await flowHelpers.getUserProfile(voucherAddress)
-          if (voucherProfile && user.addr && voucherProfile.activeVouches[user.addr] !== undefined) {
-            const amount = voucherProfile.activeVouches[user.addr!]
-            console.log(`✅ Found active vouch from ${voucherAddress}: ${amount} points`)
-            
-            // Check if we haven't already accepted this vouch
-            if (!profile.vouchesReceived[voucherAddress]) {
-              console.log(`🎉 PENDING VOUCH DETECTED! ${amount} points from ${voucherAddress}`)
-              pendingVouches.push({
-                address: voucherAddress,
-                amount: amount
-              })
-            } else {
-              console.log(`⚠️ Already accepted vouch from ${voucherAddress}`)
-            }
-          }
-        } catch (error) {
-          // Ignore errors for individual voucher checks
-          console.log(`❌ No profile found for ${voucherAddress}`)
-        }
-      }
-      
-      console.log(`📊 Found ${pendingVouches.length} pending vouches total`)
-      return pendingVouches
-    } catch (error) {
-      console.error('❌ Error getting pending vouches:', error)
-      return []
-    }
-  }
-
-  // Load pending vouches when profile changes  
+  // Automatic vouch discovery is disabled - users use the manual check feature instead
+  // In a production system, this would use blockchain event indexing or a discovery service  
   useEffect(() => {
-    console.log(`🔄 useEffect triggered - profile: ${!!profile}, user.addr: ${user.addr}`)
-    if (profile && user.addr) {
-      console.log('✅ Conditions met, calling getPendingVouches...')
-      getPendingVouches().then((vouches) => {
-        console.log(`📥 Setting ${vouches.length} pending vouches in state`)
-        setPendingVouches(vouches)
-      })
-    } else {
-      console.log('❌ Conditions not met for checking pending vouches')
-    }
+    // Set empty array since automatic discovery is not implemented
+    setPendingVouches([])
   }, [profile, user.addr])
 
   const loadUserProfile = async () => {

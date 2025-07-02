@@ -24,6 +24,8 @@ export default function VouchingInterface({
   const [selectedAddress, setSelectedAddress] = useState('')
   const [vouchAmount, setVouchAmount] = useState('')
   const [showVouchForm, setShowVouchForm] = useState(false)
+  const [checkAddress, setCheckAddress] = useState('')
+  const [checkResult, setCheckResult] = useState<{ address: string; amount: number; found: boolean } | null>(null)
 
   if (!profile) {
     return (
@@ -51,6 +53,28 @@ export default function VouchingInterface({
     onAcceptVouch(address, amount)
   }
 
+  const handleManualCheck = async () => {
+    if (!checkAddress || !profile) return
+    
+    setCheckResult(null)
+    
+    try {
+      // Import flowHelpers dynamically
+      const { flowHelpers } = await import('@/lib/flowHelpers')
+      
+      const voucherProfile = await flowHelpers.getUserProfile(checkAddress)
+      if (voucherProfile && voucherProfile.activeVouches[profile.address] !== undefined) {
+        const amount = voucherProfile.activeVouches[profile.address]
+        setCheckResult({ address: checkAddress, amount, found: true })
+      } else {
+        setCheckResult({ address: checkAddress, amount: 0, found: false })
+      }
+    } catch (error) {
+      console.error('Error checking vouch:', error)
+      setCheckResult({ address: checkAddress, amount: 0, found: false })
+    }
+  }
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm space-y-6">
       <div className="flex items-center justify-between">
@@ -60,7 +84,7 @@ export default function VouchingInterface({
         </div>
       </div>
 
-      {/* Pending Vouches Section */}
+      {/* Pending Vouches Section - Only show if there are any */}
       {pendingVouches.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center space-x-2">
@@ -95,6 +119,91 @@ export default function VouchingInterface({
           </div>
         </div>
       )}
+
+      {/* Discover Vouches Section - Primary way to find vouches */}
+      <div className="space-y-3">
+        <div className="flex items-center space-x-2">
+          <Search className="h-4 w-4 text-blue-600" />
+          <h3 className="text-sm font-medium text-gray-900">Discover Vouches</h3>
+        </div>
+        
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
+          <div className="text-sm text-blue-800">
+            <p className="font-medium mb-2">📢 How to Find Vouches:</p>
+            <ol className="list-decimal list-inside space-y-1 text-xs">
+              <li>Ask someone to vouch for you by sharing your address: <span className="font-mono bg-white px-1 py-0.5 rounded">{profile.address}</span></li>
+              <li>Once they vouch, enter their address below to check</li>
+              <li>Accept the vouch to gain reputation points!</li>
+            </ol>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Check Address for Vouch
+            </label>
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                value={checkAddress}
+                onChange={(e) => setCheckAddress(e.target.value)}
+                placeholder="0x1234567890abcdef"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              />
+              <button
+                onClick={handleManualCheck}
+                disabled={!checkAddress}
+                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+              >
+                Check
+              </button>
+            </div>
+          </div>
+          
+          {checkResult && (
+            <div className={`p-3 rounded-lg border ${
+              checkResult.found 
+                ? 'bg-green-50 border-green-200' 
+                : 'bg-gray-50 border-gray-200'
+            }`}>
+              {checkResult.found ? (
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-800">
+                      Vouch Found! 🎉
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-700">
+                    <span className="font-mono">{checkResult.address.slice(0, 8)}...{checkResult.address.slice(-6)}</span>
+                    {' '}has vouched <strong>{checkResult.amount.toFixed(1)} reputation points</strong> for you.
+                  </div>
+                  {!profile.vouchesReceived[checkResult.address] && (
+                    <button
+                      onClick={() => handleAcceptVouch(checkResult.address, checkResult.amount)}
+                      className="flex items-center space-x-1 px-3 py-1 text-sm text-green-600 hover:text-green-800 border border-green-300 rounded-md hover:bg-green-50 font-medium"
+                    >
+                      <CheckCircle className="h-3 w-3" />
+                      <span>Accept This Vouch</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm text-gray-600">
+                    No active vouch found from this address.
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <div className="text-xs text-blue-700 bg-blue-100 p-3 rounded border border-blue-200">
+            <p className="font-medium mb-1">💡 Share Your Address:</p>
+            <p>Copy your address above and share it with others so they can vouch for you. RepVouch works for ANY Flow wallet address!</p>
+          </div>
+        </div>
+      </div>
 
       {/* Create New Vouch Section */}
       {availableSlots > 0 ? (
