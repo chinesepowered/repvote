@@ -1,20 +1,27 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import * as fcl from "@onflow/fcl"
+import fcl from "@/lib/flow"
 import { Coins, LogOut, User, Network } from 'lucide-react'
 
 export default function Header() {
   const [user, setUser] = useState<{ loggedIn: boolean; addr?: string | null }>({ loggedIn: false, addr: null })
+  const [hasMounted, setHasMounted] = useState(false)
 
   useEffect(() => {
+    setHasMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!hasMounted) return
+    
     const unsubscribe = fcl.currentUser.subscribe(setUser)
     return () => {
       if (unsubscribe && typeof unsubscribe === 'function') {
         unsubscribe()
       }
     }
-  }, [])
+  }, [hasMounted])
 
   const signIn = () => {
     fcl.authenticate()
@@ -46,7 +53,9 @@ export default function Header() {
           </nav>
 
           <div className="flex items-center space-x-4">
-            {user.loggedIn ? (
+            {!hasMounted ? (
+              <div className="h-10 w-32 bg-gray-200 rounded animate-pulse"></div>
+            ) : user.loggedIn ? (
               <div className="flex items-center space-x-3">
                 <div className="flex items-center space-x-2">
                   <User className="h-5 w-5 text-gray-500" />

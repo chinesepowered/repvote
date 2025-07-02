@@ -27,14 +27,22 @@ export default function LiveTransactionFeed({
 }: LiveTransactionFeedProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [hasMounted, setHasMounted] = useState(false)
+
+  // Ensure component is only rendered on client
+  useEffect(() => {
+    setHasMounted(true)
+  }, [])
 
   // Mock transaction generation for demo
   useEffect(() => {
-    if (!autoRefresh) return
+    if (!autoRefresh || !hasMounted) return
+
+    let transactionCounter = 0
 
     const generateMockTransaction = (): Transaction => {
       const types: Transaction['type'][] = ['vouch_created', 'vouch_revoked', 'user_registered', 'reputation_updated']
-      const type = types[Math.floor(Math.random() * types.length)]
+      const type = types[transactionCounter % types.length]
       
       const mockAddresses = [
         '0x1234567890abcdef',
@@ -44,15 +52,17 @@ export default function LiveTransactionFeed({
         '0x13579bdf2468ace0'
       ]
 
+      transactionCounter++
+
       return {
-        id: Math.random().toString(36).substr(2, 9),
+        id: `tx-${transactionCounter}-${performance.now()}`,
         type,
-        timestamp: Date.now(),
-        fromAddress: type !== 'user_registered' ? mockAddresses[Math.floor(Math.random() * mockAddresses.length)] : undefined,
-        toAddress: type === 'vouch_created' || type === 'vouch_revoked' ? mockAddresses[Math.floor(Math.random() * mockAddresses.length)] : undefined,
-        amount: type === 'vouch_created' ? Math.random() * 10 + 1 : undefined,
-        txHash: `0x${Math.random().toString(16).substr(2, 64)}`,
-        blockHeight: Math.floor(Math.random() * 1000000) + 5000000
+        timestamp: performance.now(),
+        fromAddress: type !== 'user_registered' ? mockAddresses[transactionCounter % mockAddresses.length] : undefined,
+        toAddress: type === 'vouch_created' || type === 'vouch_revoked' ? mockAddresses[(transactionCounter + 1) % mockAddresses.length] : undefined,
+        amount: type === 'vouch_created' ? (transactionCounter % 10) + 1 : undefined,
+        txHash: `0x${transactionCounter.toString(16).padStart(64, '0')}`,
+        blockHeight: 5000000 + transactionCounter * 100
       }
     }
 
@@ -60,23 +70,27 @@ export default function LiveTransactionFeed({
     const initialTransactions = Array.from({ length: 5 }, generateMockTransaction)
     setTransactions(initialTransactions.sort((a, b) => b.timestamp - a.timestamp))
 
-    // Simulate new transactions every 10-30 seconds
+    // Simulate new transactions every 15 seconds (fixed interval)
     const interval = setInterval(() => {
       const newTransaction = generateMockTransaction()
       setTransactions(prev => 
         [newTransaction, ...prev].slice(0, maxItems).sort((a, b) => b.timestamp - a.timestamp)
       )
-    }, Math.random() * 20000 + 10000) // 10-30 seconds
+    }, 15000) // Fixed 15 seconds
 
     return () => clearInterval(interval)
-  }, [autoRefresh, maxItems])
+  }, [autoRefresh, maxItems, hasMounted])
 
   // Function to add real transactions (called from other components)
   const addTransaction = (transaction: Omit<Transaction, 'id' | 'timestamp'>) => {
+    if (!hasMounted) return
+    
     const newTransaction: Transaction = {
       ...transaction,
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: Date.now()
+      id: typeof crypto !== 'undefined' && crypto.randomUUID 
+        ? crypto.randomUUID() 
+        : `real-tx-${performance.now()}`,
+      timestamp: performance.now()
     }
     
     setTransactions(prev => 
@@ -152,13 +166,36 @@ export default function LiveTransactionFeed({
   }
 
   const formatTimestamp = (timestamp: number) => {
-    const now = Date.now()
+    if (!hasMounted) return 'just now'
+    
+    const now = performance.now()
     const diff = now - timestamp
     
     if (diff < 60000) return 'just now'
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
     return `${Math.floor(diff / 86400000)}d ago`
+  }
+
+  // Don't render until mounted to prevent hydration mismatch
+  if (!hasMounted) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Live Activity</h2>
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+              <span className="text-sm text-gray-500">Loading...</span>
+            </div>
+          </div>
+        </div>
+        <div className="p-6 text-center text-gray-500">
+          <Clock className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+          <p>Loading transactions...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -244,15 +281,19 @@ export default function LiveTransactionFeed({
 
 // Export hook for other components to add transactions
 export function useTransactionFeed() {
-  const [feedRef, setFeedRef] = useState<{
-    addTransaction: (tx: Omit<Transaction, 'id' | 'timestamp'>) => void
-  } | null>(null)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
 
   const addTransaction = (transaction: Omit<Transaction, 'id' | 'timestamp'>) => {
-    if (feedRef) {
-      feedRef.addTransaction(transaction)
+    const newTransaction: Transaction = {
+      ...transaction,
+      id: typeof crypto !== 'undefined' && crypto.randomUUID 
+        ? crypto.randomUUID() 
+        : `hook-tx-${performance.now()}`,
+      timestamp: performance.now()
     }
+    
+    setTransactions(prev => [newTransaction, ...prev])
   }
 
-  return { addTransaction, setFeedRef }
+  return { transactions, addTransaction }
 }

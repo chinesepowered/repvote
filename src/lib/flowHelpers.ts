@@ -174,7 +174,24 @@ export const flowHelpers = {
         cadence: GET_USER_PROFILE,
         args: (arg: any, t: any) => [arg(address, t.Address)]
       })
-      return result
+      
+      if (!result) return null
+      
+      // Convert Flow UFix64 strings to numbers
+      return {
+        ...result,
+        baseReputation: parseFloat(result.baseReputation || "0"),
+        vouchedReputation: parseFloat(result.vouchedReputation || "0"),
+        vouchCount: parseInt(result.vouchCount || "0"),
+        createdAt: parseFloat(result.createdAt || "0"),
+        // Convert activeVouches and vouchesReceived values to numbers
+        activeVouches: Object.fromEntries(
+          Object.entries(result.activeVouches || {}).map(([key, value]) => [key, parseFloat(value as string)])
+        ),
+        vouchesReceived: Object.fromEntries(
+          Object.entries(result.vouchesReceived || {}).map(([key, value]) => [key, parseFloat(value as string)])
+        )
+      }
     } catch (error) {
       console.error('Error getting user profile:', error)
       return null

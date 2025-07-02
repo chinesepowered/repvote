@@ -11,6 +11,7 @@ const VouchingInterface = dynamic(() => import('@/components/VouchingInterface')
 const LiveTransactionFeed = dynamic(() => import('@/components/LiveTransactionFeed'), { ssr: false })
 const AchievementNotification = dynamic(() => import('@/components/AchievementNotification'), { ssr: false })
 const TrustNetworkVisualization = dynamic(() => import('@/components/TrustNetworkVisualization'), { ssr: false })
+const ClientOnly = dynamic(() => import('@/components/ClientOnly'), { ssr: false })
 
 export default function Home() {
   const [user, setUser] = useState({ loggedIn: false, addr: null })
@@ -19,15 +20,24 @@ export default function Home() {
   const [achievements, setAchievements] = useState<any[]>([])
   const [previousProfile, setPreviousProfile] = useState<UserProfile | null>(null)
   const [showNetworkViz, setShowNetworkViz] = useState(false)
+  const [hasMounted, setHasMounted] = useState(false)
+  const [pendingVouches, setPendingVouches] = useState<Array<{ address: string; amount: number }>>([])
+
+  // Ensure proper hydration
+  useEffect(() => {
+    setHasMounted(true)
+  }, [])
 
   useEffect(() => {
+    if (!hasMounted) return
+    
     const unsubscribe = fcl.currentUser.subscribe(setUser)
     return () => {
       if (unsubscribe && typeof unsubscribe === 'function') {
         unsubscribe()
       }
     }
-  }, [])
+  }, [hasMounted])
 
   useEffect(() => {
     if (user.loggedIn && user.addr) {
@@ -36,6 +46,58 @@ export default function Home() {
       setProfile(null)
     }
   }, [user])
+
+  // Function to detect pending vouches (vouches created for this user but not yet accepted)
+  const getPendingVouches = async (): Promise<Array<{ address: string; amount: number }>> => {
+    if (!profile) return []
+    
+    try {
+      const { flowHelpers } = await import('@/lib/flowHelpers')
+      const pendingVouches: Array<{ address: string; amount: number }> = []
+      
+      // For demo purposes, we'll check a few known addresses
+      // In a production system, this would be done through events or indexing
+      const potentialVouchers = [
+        '0x1d007d755706c469', 
+        '0x26cc4629675aa875',
+        '0x01cf0e2f2f715450'
+      ]
+      
+      for (const voucherAddress of potentialVouchers) {
+        if (voucherAddress === user.addr) continue // Skip self
+        
+        try {
+          const voucherProfile = await flowHelpers.getUserProfile(voucherAddress)
+          if (voucherProfile && user.addr && voucherProfile.activeVouches[user.addr] !== undefined) {
+            const amount = voucherProfile.activeVouches[user.addr!]
+            
+            // Check if we haven't already accepted this vouch
+            if (!profile.vouchesReceived[voucherAddress]) {
+              pendingVouches.push({
+                address: voucherAddress,
+                amount: amount
+              })
+            }
+          }
+        } catch (error) {
+          // Ignore errors for individual voucher checks
+          console.log(`No profile found for ${voucherAddress}`)
+        }
+      }
+      
+      return pendingVouches
+    } catch (error) {
+      console.error('Error getting pending vouches:', error)
+      return []
+    }
+  }
+
+  // Load pending vouches when profile changes  
+  useEffect(() => {
+    if (profile && user.addr) {
+      getPendingVouches().then(setPendingVouches)
+    }
+  }, [profile, user.addr])
 
   const loadUserProfile = async () => {
     if (!user.addr) return
@@ -67,7 +129,7 @@ export default function Home() {
             activeVouches: {},
             vouchesReceived: {},
             vouchCount: 0,
-            createdAt: Date.now()
+            createdAt: 0 // Use fixed value for hydration consistency
           }
         }
       }
@@ -90,7 +152,7 @@ export default function Home() {
         activeVouches: {},
         vouchesReceived: {},
         vouchCount: 0,
-        createdAt: Date.now()
+        createdAt: 0 // Use fixed value for hydration consistency
       }
       setProfile(fallbackProfile)
     } finally {
@@ -142,10 +204,15 @@ export default function Home() {
   }
 
   const addAchievement = (achievement: any) => {
+    // Use crypto.randomUUID() for better uniqueness, fallback to counter
+    const id = typeof crypto !== 'undefined' && crypto.randomUUID 
+      ? crypto.randomUUID() 
+      : `achievement-${achievements.length}-${performance.now()}`
+    
     const newAchievement = {
       ...achievement,
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: Date.now()
+      id,
+      timestamp: performance.now() // Use performance.now() for client-side consistency
     }
     
     setAchievements(prev => [...prev, newAchievement])
@@ -248,60 +315,7 @@ export default function Home() {
     }
   }
 
-  // Function to detect pending vouches (vouches created for this user but not yet accepted)
-  const getPendingVouches = async (): Promise<Array<{ address: string; amount: number }>> => {
-    if (!profile) return []
-    
-    try {
-      const { flowHelpers } = await import('@/lib/flowHelpers')
-      const pendingVouches: Array<{ address: string; amount: number }> = []
-      
-      // For demo purposes, we'll check a few known addresses
-      // In a production system, this would be done through events or indexing
-      const potentialVouchers = [
-        '0x1d007d755706c469', 
-        '0x26cc4629675aa875',
-        '0x01cf0e2f2f715450'
-      ]
-      
-      for (const voucherAddress of potentialVouchers) {
-        if (voucherAddress === user.addr) continue // Skip self
-        
-                 try {
-           const voucherProfile = await flowHelpers.getUserProfile(voucherAddress)
-           if (voucherProfile && user.addr && voucherProfile.activeVouches[user.addr] !== undefined) {
-             const amount = voucherProfile.activeVouches[user.addr!]
-             
-             // Check if we haven't already accepted this vouch
-             if (!profile.vouchesReceived[voucherAddress]) {
-               pendingVouches.push({
-                 address: voucherAddress,
-                 amount: amount
-               })
-             }
-           }
-        } catch (error) {
-          // Ignore errors for individual voucher checks
-          console.log(`No profile found for ${voucherAddress}`)
-        }
-      }
-      
-      return pendingVouches
-    } catch (error) {
-      console.error('Error getting pending vouches:', error)
-      return []
-    }
-  }
-
-  // State for pending vouches
-  const [pendingVouches, setPendingVouches] = useState<Array<{ address: string; amount: number }>>([])
-
-  // Load pending vouches when profile changes
-  useEffect(() => {
-    if (profile && user.addr) {
-      getPendingVouches().then(setPendingVouches)
-    }
-  }, [profile, user.addr])
+  // Function moved to top of component
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -346,7 +360,9 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="lg:col-span-1">
-                  <LiveTransactionFeed maxItems={8} autoRefresh={true} />
+                  <ClientOnly>
+                    <LiveTransactionFeed maxItems={8} autoRefresh={true} />
+                  </ClientOnly>
                 </div>
               </div>
             )}
@@ -478,10 +494,12 @@ export default function Home() {
       </main>
       
       {/* Achievement Notifications */}
-      <AchievementNotification 
-        achievements={achievements}
-        onDismiss={dismissAchievement}
-      />
+      {hasMounted && (
+        <AchievementNotification 
+          achievements={achievements}
+          onDismiss={dismissAchievement}
+        />
+      )}
 
       {/* Trust Network Visualization */}
       <TrustNetworkVisualization
